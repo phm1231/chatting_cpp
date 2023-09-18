@@ -7,6 +7,7 @@
 #include <string>
 #include <cassert>
 #include <algorithm>
+#include <mutex>
 
 using namespace std;
 
@@ -16,6 +17,7 @@ void InitServer(int& server_socket, struct sockaddr_in& address);
 void RemoveClient(const int client_socket);
 
 vector<int> clients;
+mutex clients_mutex;
 
 int main(){
     int server_socket;
@@ -60,6 +62,8 @@ void InitServer(int& server_socket, struct sockaddr_in& address){
 }
 
 void BroadCastToClient(const string msg){
+    cout << "Lock in BroadCast" << endl;
+    lock_guard<mutex> lg(clients_mutex);
     for(int client: clients){
         send(client, msg.c_str(), msg.size(), 0);
     }
@@ -75,6 +79,9 @@ void ReceiveFromClient(const int client_socket){
             // 해당 Client의 접속 종료
             if(read_byte == 0){
                 RemoveClient(client_socket);
+                
+                string out_msg = to_string(client_socket) + "님이 퇴장하였습니다.";
+                BroadCastToClient(out_msg);
                 break;
             }
 
@@ -88,8 +95,6 @@ void ReceiveFromClient(const int client_socket){
 
 void RemoveClient(const int client_socket){
     // 클라이언트 삭제
+    lock_guard<mutex> lg(clients_mutex);
     clients.erase(remove(clients.begin(), clients.end(), client_socket), clients.end());
-    // 퇴장 알림
-    string out_msg = to_string(client_socket) + "님이 퇴장하였습니다.";
-    BroadCastToClient(out_msg);
 }
