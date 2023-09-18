@@ -4,88 +4,92 @@
 #include <netinet/in.h>
 #include <cstring>
 #include <thread>
+#include <string>
+#include <cassert>
+#include <algorithm>
 
 using namespace std;
 
-void notifyAll(const char* message);
-void receiver(int sock);
-vector<int> sockets;
+void BroadCastToClient(const string msg);
+void ReceiveFromClient(const int client_socket);
+void InitServer(int& server_socket, struct sockaddr_in& address);
+void RemoveClient(const int client_socket);
 
-const int PORT = 8080;
+vector<int> clients;
 
 int main(){
-    cout << "SERVER ON" << endl;
-
-    int server_fd, opt = 1;
+    int server_socket;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
 
-    // Creaating socket file descriptor
-    if((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0){
-        perror("socket: ");
-        return -1;
-    }
-
-    // Attaching socket to the port 8080
-    if(setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))){
-        perror("setsockopt: ");
-        return -1;
-    }
-
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
-
-    // Bind the socket to prot
-    if(::bind(server_fd, (struct sockaddr* )&address, sizeof(address)) < 0){
-        perror("bind: ");
-        return -1;
-    }
-
-    // listen incomming connection
-    if(listen(server_fd, 3) < 0){
-        perror("listen: ");
-        return -1;
-    }
+    InitServer(server_socket, address);
 
     // Accept incoming connection
     while(1){
-        int new_socket = accept(server_fd, (struct sockaddr* )&address, (socklen_t* )&addrlen);
-        cout << "accept: " << new_socket << endl;
-        if(new_socket < 0){
-            perror("accept: ");
-            return -1;
-        }
-        sockets.push_back(new_socket); // 관리 대상에 등록
-        thread th(receiver, new_socket); // receiver 추가
-    }
+        int client_socket = accept(server_socket, (struct sockaddr* )&address, (socklen_t* )&addrlen);
 
-    cout << "SERVER OFF" << endl;
+        assert(client_socket >= 0);
+
+        clients.push_back(client_socket); // 연결 대상에 추가
+
+        thread receiver(ReceiveFromClient, client_socket); // 수신할 스레드 추가
+        receiver.detach(); 
+    }
 
     return 0;
 }
 
-void notifyAll(const char* message){
-    for(int sock: sockets){
-        send(sock, message, 1024, 0);
+void InitServer(int& server_socket, struct sockaddr_in& address){
+    const int kPORT = 8080;
+    int socket_opt = 1;
+    // Creaating socket file descriptor
+    assert((server_socket = socket(AF_INET, SOCK_STREAM, 0)) != 0);
+
+    // Attaching socket to the port 8080
+    assert(!setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &socket_opt, sizeof(socket_opt)));
+
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(kPORT);
+
+    // Bind the socket to prot
+    assert(::bind(server_socket, (struct sockaddr* )&address, sizeof(address)) >= 0);
+
+    // listen incomming connection
+    assert(listen(server_socket, 3) >= 0);
+}
+
+void BroadCastToClient(const string msg){
+    for(int client: clients){
+        send(client, msg.c_str(), msg.size(), 0);
     }
 }
 
-// 서버는 수신한 후에 다른 모두에게 뿌려주어야 함.
-void receiver(int sock){
-    cout << "thread receiver: " << sock << endl;
+void ReceiveFromClient(const int client_socket){
     try {
-        while (1) {
+        while (true) {
             char buffer[1024] = {0};
-            int bytesRead = recv(sock, buffer, 1024, 0);
-            if (bytesRead <= 0) {
-                cout << "BytesRead <= 0" << endl;
+            int read_byte = recv(client_socket, buffer, sizeof(buffer), 0);
+            assert(read_byte >= 0);
+
+            // 해당 Client의 접속 종료
+            if(read_byte == 0){
+                RemoveClient(client_socket);
                 break;
             }
-            cout << "Server received: " << buffer << endl;
-            // notifyAll(buffer);
+
+            BroadCastToClient(string(buffer));
         }
-    } catch (const std::exception& e) {
-        cerr << "Exception in receiver: " << e.what() << endl;
     }
+    catch (const std::exception& e) {
+        cerr << "ReceiveFromClient: " << e.what() << endl;
+    }
+}
+
+void RemoveClient(const int client_socket){
+    // 클라이언트 삭제
+    clients.erase(remove(clients.begin(), clients.end(), client_socket), clients.end());
+    // 퇴장 알림
+    string out_msg = to_string(client_socket) + "님이 퇴장하였습니다.";
+    BroadCastToClient(out_msg);
 }

@@ -48,7 +48,8 @@ void handleClient(int clientSocket) {
 }
 
 int main() {
-    int serverSocket, clientSocket;
+    int serverSocket, opt = 1;
+    int clientSocket;
     struct sockaddr_in serverAddr, clientAddr;
     socklen_t clientAddrLen = sizeof(clientAddr);
 
@@ -58,12 +59,18 @@ int main() {
         return -1;
     }
 
+    // Attaching socket to the port 8080
+    if(setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))){
+        perror("setsockopt: ");
+        return -1;
+    }
+
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = INADDR_ANY;
     serverAddr.sin_port = htons(PORT);
 
     // 서버 바인딩
-    if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
+    if (::bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
         cerr << "Bind error" << endl;
         return -1;
     }
@@ -88,7 +95,7 @@ int main() {
 
         // 클라이언트 핸들링을 위한 스레드 시작
         thread clientThread(handleClient, clientSocket);
-        clientThread.detach(); // 클라이언트 스레드는 데몬 스레드로 실행
+        // clientThread.detach(); // 클라이언트 스레드는 데몬 스레드로 실행
 
         cout << "New client connected: " << inet_ntoa(clientAddr.sin_addr) << endl;
     }

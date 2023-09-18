@@ -5,61 +5,53 @@
 #include <cstring>
 #include <thread>
 
-#define PORT 8080
-
 using namespace std;
 
-void receiver(int sock);
+void ReceiveFromServer(const int server_socket);
+void InitClient(int& client_socket, struct sockaddr_in& address);
 
 int main(int argc, char const* argv[]){
-    cout << "CLIENT ON" << endl;
+    
+    int client_socket;
+    struct sockaddr_in address;
+    InitClient(client_socket, address);
 
-    int sock = 0, valread;
-    struct sockaddr_in serv_addr;
-
-    // Create Socket file descriptor
-    if((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0){
-        perror("socket: ");
-        return -1;
-    }
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
-
-    // Convert IPv4 and IPv6 ddresses from text to binary form
-    const char* ipaddr = "127.0.0.1";
-    if(inet_pton(AF_INET, ipaddr, &serv_addr.sin_addr) <= 0){
-        perror("inet_pton: ");
-        return -1;
-    }
-
-    // Connect to the server
-    if(connect(sock, (struct sockaddr* )&serv_addr, sizeof(serv_addr)) < 0){
-        perror("connect: ");
-        return -1;
-    }
-/*
     // receiver thread
-    thread th(receiver, sock);
+    thread receiver(ReceiveFromServer, client_socket);
+    receiver.detach();
 
     // Send Message
-    while(1){
+    while(true){
         char buffer[1024] = {0};
         cin >> buffer;
-        send(sock, buffer, sizeof(buffer), 0);
+        send(client_socket, buffer, sizeof(buffer), 0);
     }
-*/
-    char buffer[1024] = {0, };
-    cin >> buffer;
-    send(sock, buffer, sizeof(buffer), 0);
-    
-    cout << "CLIENT OFF" << endl;
+
 }
 
-void receiver(int sock){
+void InitClient(int& client_socket, struct sockaddr_in& address){
+
+    const int kPORT = 8080;
+    const char* server_address = "127.0.0.1";
+
+    // Create Socket file descriptor
+    assert((client_socket= socket(AF_INET, SOCK_STREAM, 0)) >= 0);
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(kPORT);
+
+    // Convert IPv4 and IPv6 ddresses from text to binary form
+    assert(inet_pton(AF_INET, server_address, &address.sin_addr) > 0);
+
+    // Connect to the server
+    assert(connect(client_socket, (struct sockaddr* )&address, sizeof(address)) >= 0);
+
+}
+
+void ReceiveFromServer(const int client_socket){
     while(1){
         char buffer[1024] = {0};
-        recv(sock, buffer, 1024, 0);
+        recv(client_socket, buffer, 1024, 0);
         cout << "받음: " << buffer << endl;
     }
 }
