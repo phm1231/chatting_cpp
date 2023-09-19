@@ -19,16 +19,17 @@ int main(){
     int client_socket = accept(server_socket, (struct sockaddr* )&address, (socklen_t* )&addrlen);
     assert(client_socket >= 0);
 
-    // 보낼 메시지 입력 후 전송
-    char send_buffer[1024] = {0};
-    cin >> send_buffer;
-    send(client_socket, send_buffer, sizeof(send_buffer), 0);
+    while(1){
+        // 보낼 메시지 입력 후 전송
+        char send_buffer[1024] = {0};
+        cin >> send_buffer;
+        send(client_socket, send_buffer, sizeof(send_buffer), 0);
 
-    // 메시지를 수신할 때까지 대기, 수신 후 출력, 종료
-    char recv_buffer[1024] = {0};
-    recv(client_socket, recv_buffer, sizeof(recv_buffer), 0);
-    cout << "\n받은 메시지: " << recv_buffer << endl;
-
+        // 메시지를 수신할 때까지 대기, 수신 후 출력, 종료
+        char recv_buffer[1024] = {0};
+        recv(client_socket, recv_buffer, sizeof(recv_buffer), 0);
+        cout << "\n받은 메시지: " << recv_buffer << endl;
+    }
     return 0;
 }
 

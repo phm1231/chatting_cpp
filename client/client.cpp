@@ -12,16 +12,17 @@ int main(int argc, char const* argv[]){
     struct sockaddr_in address;
     InitClient(client_socket, address);
 
-    // client는 먼저 받는다.
-    char recv_buffer[1024] = {0};
-    recv(client_socket, recv_buffer, sizeof(recv_buffer), 0);
-    cout << "\n받은 메시지: " << recv_buffer << endl;
+    while(1){
+        // 메세지를 받는다.
+        char recv_buffer[1024] = {0};
+        recv(client_socket, recv_buffer, sizeof(recv_buffer), 0);
+        cout << "\n받은 메시지: " << recv_buffer << endl;
 
-    // 메세지를 보낸다.
-    char send_buffer[1024] = {0};
-    cin >> send_buffer;
-    send(client_socket, send_buffer, sizeof(send_buffer), 0);
-
+        // 메세지를 보낸다.
+        char send_buffer[1024] = {0};
+        cin >> send_buffer;
+        send(client_socket, send_buffer, sizeof(send_buffer), 0);
+    }
 }
 
 void InitClient(int& client_socket, struct sockaddr_in& address){
