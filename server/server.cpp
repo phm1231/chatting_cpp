@@ -2,9 +2,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <cassert>
+#include <thread>
 
 using namespace std;
 
+void Receiver(const int sock);
 void InitServer(int& server_socket, struct sockaddr_in& address);
 
 int main(){
@@ -19,15 +21,15 @@ int main(){
     int client_socket = accept(server_socket, (struct sockaddr* )&address, (socklen_t* )&addrlen);
     assert(client_socket >= 0);
 
-    // 보낼 메시지 입력 후 전송
-    char send_buffer[1024] = {0};
-    cin >> send_buffer;
-    send(client_socket, send_buffer, sizeof(send_buffer), 0);
+    // 클라이언트가 연결되면 recv 작업을 위임할 스레드를 생성한다.
+    thread th(Receiver, client_socket);
 
-    // 메시지를 수신할 때까지 대기, 수신 후 출력, 종료
-    char recv_buffer[1024] = {0};
-    recv(client_socket, recv_buffer, sizeof(recv_buffer), 0);
-    cout << "\n받은 메시지: " << recv_buffer << endl;
+    // 보낼 메시지 입력 후 전송
+    while(1){
+        char send_buffer[1024] = {0};
+        cin >> send_buffer;
+        send(client_socket, send_buffer, sizeof(send_buffer), 0);
+    }
 
     return 0;
 }
@@ -51,4 +53,14 @@ void InitServer(int& server_socket, struct sockaddr_in& address){
 
     int listen_success = listen(server_socket, 3);
     assert(listen_success >= 0);
+}
+
+void Receiver(const int sock){
+    while (true) {
+        char recv_buffer[1024] = {0};
+        int read_byte = recv(sock, recv_buffer, sizeof(recv_buffer), 0);
+        assert(read_byte > 0);
+        cout << "받은 메세지: " << recv_buffer << endl;
+
+    }
 }

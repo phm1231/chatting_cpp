@@ -2,9 +2,11 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <thread>
 
 using namespace std;
 
+void Receiver(const int sock);
 void InitClient(int& client_socket, struct sockaddr_in& address);
 
 int main(int argc, char const* argv[]){
@@ -12,16 +14,13 @@ int main(int argc, char const* argv[]){
     struct sockaddr_in address;
     InitClient(client_socket, address);
 
-    // client는 먼저 받는다.
-    char recv_buffer[1024] = {0};
-    recv(client_socket, recv_buffer, sizeof(recv_buffer), 0);
-    cout << "\n받은 메시지: " << recv_buffer << endl;
+    thread th(Receiver, client_socket);
 
-    // 메세지를 보낸다.
-    char send_buffer[1024] = {0};
-    cin >> send_buffer;
-    send(client_socket, send_buffer, sizeof(send_buffer), 0);
-
+    while(1){
+        char send_buffer[1024] = {0};
+        cin >> send_buffer;
+        send(client_socket, send_buffer, sizeof(send_buffer), 0);
+    }
 }
 
 void InitClient(int& client_socket, struct sockaddr_in& address){
@@ -42,4 +41,13 @@ void InitClient(int& client_socket, struct sockaddr_in& address){
     // Connect to the server
     int connect_success = connect(client_socket, (struct sockaddr* )&address, sizeof(address));
     assert(connect_success >= 0);
+}
+
+void Receiver(const int sock){
+    while (true) {
+        char recv_buffer[1024] = {0};
+        int read_byte = recv(sock, recv_buffer, sizeof(recv_buffer), 0);
+        assert(read_byte > 0);
+        cout << "받은 메세지: " << recv_buffer << endl;
+    }
 }
