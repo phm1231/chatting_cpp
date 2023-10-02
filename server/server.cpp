@@ -29,9 +29,10 @@ int main(){
     // Accept incoming connection
     while(1){
         int client_socket = accept(server_socket, (struct sockaddr* )&address, (socklen_t* )&addrlen);
-
+        
         assert(client_socket >= 0);
 
+        unique_lock<shared_mutex> lock(clients_mutex);
         clients.push_back(client_socket); // 연결 대상에 추가
 
         thread receiver(ReceiveFromClient, client_socket); // 수신할 스레드 추가
@@ -92,8 +93,8 @@ void ReceiveFromClient(const int client_socket){
     }
 }
 
+// 클라이언트 삭제
 void RemoveClient(const int client_socket){
-    // 클라이언트 삭제
     unique_lock<shared_mutex> lock(clients_mutex);
     clients.erase(remove(clients.begin(), clients.end(), client_socket), clients.end());
 }

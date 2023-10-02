@@ -52,6 +52,6 @@ void ReceiveFromServer(const int client_socket){
     while(1){
         char buffer[1024] = {0};
         recv(client_socket, buffer, 1024, 0);
-        cout << "받음: " << buffer << endl;
+        cout << "받은 메세지: " << buffer << endl;
     }
 }
