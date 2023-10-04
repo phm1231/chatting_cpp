@@ -2,8 +2,16 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <string>
 
 using namespace std;
+
+typedef struct Msg{
+    int number;
+    string str;
+    Msg(){}
+    Msg(int number, string str): number(number), str(str) {}
+}Msg;
 
 void InitClient(int& client_socket, struct sockaddr_in& address);
 
@@ -13,14 +21,20 @@ int main(int argc, char const* argv[]){
     InitClient(client_socket, address);
 
     // client는 먼저 받는다.
-    char recv_buffer[1024] = {0};
-    recv(client_socket, recv_buffer, sizeof(recv_buffer), 0);
-    cout << "\n받은 메시지: " << recv_buffer << endl;
+    Msg recv_msg;
+    recv(client_socket, &recv_msg, sizeof(recv_msg), 0);
+    cout << "\n받은 number: " << recv_msg.number << endl;
+    cout << "\n받은 str: " << recv_msg.str << endl;
 
     // 메세지를 보낸다.
-    char send_buffer[1024] = {0};
-    cin >> send_buffer;
-    send(client_socket, send_buffer, sizeof(send_buffer), 0);
+    int num;
+    string s;
+    cout << "보낼 Num 입력: ";
+    cin >> num;
+    cout << "보낼 Str 입력: ";
+    cin >> s;
+    Msg send_msg(num, s);
+    send(client_socket, &send_msg, sizeof(send_msg), 0);
 
 }
 

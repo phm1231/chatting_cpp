@@ -4,6 +4,12 @@
 #include <cassert>
 
 using namespace std;
+typedef struct Msg{
+    int number;
+    string str;
+    Msg(){}
+    Msg(int number, string str): number(number), str(str) {}
+}Msg;
 
 void InitServer(int& server_socket, struct sockaddr_in& address);
 
@@ -20,14 +26,20 @@ int main(){
     assert(client_socket >= 0);
 
     // 보낼 메시지 입력 후 전송
-    char send_buffer[1024] = {0};
-    cin >> send_buffer;
-    send(client_socket, send_buffer, sizeof(send_buffer), 0);
+    int num;
+    string s;
+    cout << "보낼 Num 입력: ";
+    cin >> num;
+    cout << "보낼 Str 입력: ";
+    cin >> s;
+    Msg send_msg(num, s);
+    send(client_socket, &send_msg, sizeof(send_msg), 0);
 
     // 메시지를 수신할 때까지 대기, 수신 후 출력, 종료
-    char recv_buffer[1024] = {0};
-    recv(client_socket, recv_buffer, sizeof(recv_buffer), 0);
-    cout << "\n받은 메시지: " << recv_buffer << endl;
+    Msg recv_msg;
+    recv(client_socket, &recv_msg, sizeof(recv_msg), 0);
+    cout << "\n받은 number: " << recv_msg.number << endl;
+    cout << "\n받은 str: " << recv_msg.str << endl;
 
     return 0;
 }
