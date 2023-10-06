@@ -3,12 +3,30 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <cstring>
-#include <thread>
+#include <cstdlib>
+#include <cstring>
+
+const int kPort = 8080;
+const int kRoomPort = 8081;
+
+enum MSG_TYPE{
+    kWaitingMsg,
+    kReadRoom,
+    kMakeRoom,
+    kEnterRoom
+};
+
+typedef struct Msg{
+    MSG_TYPE type;
+    size_t content_size;
+    char content[128];
+}Msg;
 
 using namespace std;
 
-void ReceiveFromServer(const int server_socket);
 void InitClient(int& client_socket, struct sockaddr_in& address);
+void ExplainType();
+Msg MsgInput(const int client_socket);
 
 int main(int argc, char const* argv[]){
     
@@ -16,42 +34,62 @@ int main(int argc, char const* argv[]){
     struct sockaddr_in address;
     InitClient(client_socket, address);
 
-    // receiver thread
-    thread receiver(ReceiveFromServer, client_socket);
-    receiver.detach();
+    const Msg send_msg = MsgInput(client_socket);
+    send(client_socket, &send_msg, sizeof(send_msg), 0);
 
-    // Send Message
-    while(true){
-        char buffer[1024] = {0};
-        cin >> buffer;
-        send(client_socket, buffer, sizeof(buffer), 0);
-    }
-
+    return 0;
 }
 
 void InitClient(int& client_socket, struct sockaddr_in& address){
-
-    const int kPORT = 8080;
     const char* server_address = "127.0.0.1";
 
     // Create Socket file descriptor
     assert((client_socket= socket(AF_INET, SOCK_STREAM, 0)) >= 0);
 
     address.sin_family = AF_INET;
-    address.sin_port = htons(kPORT);
+    address.sin_port = htons(kPort);
 
     // Convert IPv4 and IPv6 ddresses from text to binary form
     assert(inet_pton(AF_INET, server_address, &address.sin_addr) > 0);
 
     // Connect to the server
     assert(connect(client_socket, (struct sockaddr* )&address, sizeof(address)) >= 0);
-
 }
 
-void ReceiveFromServer(const int client_socket){
-    while(1){
-        char buffer[1024] = {0};
-        recv(client_socket, buffer, 1024, 0);
-        cout << "받음: " << buffer << endl;
+Msg MsgInput(const int client_socket){
+    string room_name = "";
+    Msg send_msg;
+
+    ExplainType();
+
+    int type;
+    cout << "type 입력: ";
+    cin >> type;
+
+    send_msg.type = static_cast<MSG_TYPE>(type);
+
+    switch(send_msg.msg_type){
+        case MSG_TYPE::kReadRoom: // 방 목록 요청
+            break;
+        case MSG_TYPE::kMakeRoom: // 방 만들기
+            cout << "생성할 방 이름 입력: " << endl;
+            cin >> send_msg.content;
+            break;
+        case MSG_TYPE::kEnterRoom: // 방 참여하기
+            cout << "참여할 방 이름 입력: " << endl;
+            cin >> send_msg.content;
+            break;
+        default:
+            break;
     }
+
+    return send_msg;
+}
+
+void ExplainType(){
+    cout << "===== Explain Type =====" << endl;
+    cout << "1. 방 목록 요청" << endl;
+    cout << "2. 방 만들기" << endl;
+    cout << "3. 방 참여하기" << endl;
+    cout << "===== ============ =====" << endl;
 }
