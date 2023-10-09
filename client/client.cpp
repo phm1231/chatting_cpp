@@ -8,7 +8,6 @@
 #include <cstring>
 
 const int kPort = 8080;
-const int kRoomPort = 8081;
 
 enum MSG_TYPE{
     kWaitingMsg,
@@ -98,9 +97,9 @@ Msg MsgInput(const int client_socket){
 
 void ExplainType(){
     cout << "===== Explain Type =====" << endl;
-    cout << "1. 방 목록 요청" << endl;
-    cout << "2. 방 만들기" << endl;
-    cout << "3. 방 참여하기" << endl;
+    cout << "1: 방 목록 요청" << endl;
+    cout << "2: 방 만들기" << endl;
+    cout << "3: 방 참여하기" << endl;
     cout << "===== ============ =====" << endl;
 }
 

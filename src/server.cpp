@@ -1,5 +1,6 @@
 #include <server.hpp>
 
+shared_mutex clients_mutex;
 std::unordered_map<std::string, std::vector<int> > room_and_clients; // <room_name, sockets>
 const std::string kRoomNameDuplication = "이미 존재하는 방 제목입니다.";
 const std::string kMakeRoomSuccess = "방이 생성되었습니다.";
@@ -47,7 +48,6 @@ int InitServer(struct sockaddr_in& address){
 
 // 1개의 client로부터 메세지를 받는 함수
 void ReceiveFromClient(const int client_socket){
-
     try {
         while (true) {
             Msg recv_msg;
@@ -104,6 +104,10 @@ void HandleMsg(const Msg& recv_msg, const int client_socket){
             }
             break;
         }
+        case MSG_TYPE::kSendMsg:{
+            BroadCastToClient(recv_msg, client_socket);
+            break;
+        }
         default:
             break;
     }
@@ -116,11 +120,9 @@ std::string GetRoomNames(){
     return ret;
 }
 
-void BroadCastToClient(const Msg& msg){
-    /*
+void BroadCastToClient(const Msg& msg, const int sender){
     shared_lock<shared_mutex> lock(clients_mutex);
-    for(int client: room_and_client[clients){
-        send(client, msg.c_str(), msg.size(), 0);
+    for(int client: room_and_client[clients]){
+        send(client, msg, sizeof(msg), 0);
     }
-    */
 }
