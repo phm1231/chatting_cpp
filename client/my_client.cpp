@@ -26,6 +26,8 @@ inline std::string GetUserInput(){
 }
 
 void HandleUserInput(const std::string& user_input){
+    if(user_input == "") return;
+    std::cout << "user_input: " << user_input << std::endl;
     if(user_input == "/Login") Login();
     else if(user_input == "/Logout") Logout();
     else if(user_input == "/Help") Help();
@@ -41,6 +43,8 @@ void Login(){
     std::cout << "ID: ";
     std::string _id;
     std::cin >> _id;
+    std::cin.ignore();
+
     id = trim(_id);
     is_login = true;
     std::cout << "Login Success\n";
@@ -81,8 +85,10 @@ void EnterRoom(){
     getline(std::cin, enter_room);
     enter_room = trim(enter_room);
     assert(CheckInputValidity(enter_room, CHECK_TYPE::kRoomName));
+    room_name = enter_room;
+    has_joined_room = true;
 
-    Msg send_msg(MsgHeader(MSG_TYPE::kEnterRoom, id, enter_room), "");
+    Msg send_msg(MsgHeader(MSG_TYPE::kEnterRoom, id, room_name), "");
     send(sockfd, &send_msg, sizeof(send_msg), 0);
 }
 
@@ -95,7 +101,8 @@ void CreateRoom(){
 
     create_room = trim(create_room);
     assert(CheckInputValidity(create_room, CHECK_TYPE::kRoomName));
-
+    room_name = create_room;
+    has_joined_room = true;
     Msg send_msg(MsgHeader(MSG_TYPE::kCreateRoom, id, create_room), "");
     send(sockfd, &send_msg, sizeof(send_msg), 0);
 }

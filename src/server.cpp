@@ -1,32 +1,22 @@
 #include <server.hpp>
 
-shared_mutex clients_mutex;
-std::unordered_map<std::string, std::vector<int> > room_and_clients; // <room_name, sockets>
-const std::string kRoomNameDuplication = "이미 존재하는 방 제목입니다.";
-const std::string kMakeRoomSuccess = "방이 생성되었습니다.";
-const std::string kEnterRoomSuccess = "방에 입장하였습니다.";
-const std::string kEnterRoomFailed = "입장에 실패하였습니다.";
-
 int main(){
     struct sockaddr_in address;
     int addrlen = sizeof(address);
-    int server_socket = InitServer(address);
+    int server_socket;
+    InitServer(server_socket, address);
 
     while(1){
         int client_socket = accept(server_socket, (struct sockaddr* )&address, (socklen_t* )&addrlen);
-
         assert(client_socket >= 0);
 
         std::thread receiver(ReceiveFromClient, client_socket); // 수신할 스레드 추가
         receiver.detach(); 
     }
-
-    return 0;
 }
 
-int InitServer(struct sockaddr_in& address){
+void InitServer(int& server_socket, struct sockaddr_in& address){
     int socket_opt = 1;
-    int server_socket;
     // Creaating socket file descriptor
     assert((server_socket = socket(AF_INET, SOCK_STREAM, 0)) != 0);
 
@@ -42,23 +32,23 @@ int InitServer(struct sockaddr_in& address){
 
     // listen incomming connection
     assert(listen(server_socket, 3) >= 0);
-
-    return server_socket;
 }
 
-// 1개의 client로부터 메세지를 받는 함수
 void ReceiveFromClient(const int client_socket){
     try {
         while (true) {
-            Msg recv_msg;
-            char buffer[256];
-            int read_byte = recv(client_socket, buffer, sizeof(recv_msg), 0);
+            char buffer[512] = {0};
+            int read_byte = recv(client_socket, buffer, sizeof(buffer), 0);
             assert(read_byte >= 0);
             // 해당 Client의 접속 종료
-            if(read_byte == 0) break;
-
+            if(read_byte == 0){
+                Disconnect(client_socket);
+                break;
+            }
+            Msg recv_msg;
             memcpy(&recv_msg, buffer, sizeof(recv_msg));
-            HandleMsg(recv_msg, client_socket);
+            std::cout << "Recv From " << recv_msg.header.sender << std::endl;
+            HandleRecvMsg(recv_msg, client_socket);
         }
     }
     catch (const std::exception& e) {
@@ -66,63 +56,77 @@ void ReceiveFromClient(const int client_socket){
     }
 }
 
-void HandleMsg(const Msg& recv_msg, const int client_socket){
-    // type에 따라 content 내용을 정해서 리턴, fork로 방 만들기 처리 필요.
-    Msg send_msg;
-    send_msg.type = recv_msg.type;
+void HandleRecvMsg(const Msg& recv_msg, const int& client_socket){
+    const std::string& room_name = recv_msg.header.room_name;
 
-    switch(recv_msg.type){
-        case MSG_TYPE::kReadRoom:{
-            std::string room_names = GetRoomNames();
-            std::copy(room_names.begin(), room_names.end(), send_msg.content);
-            send_msg.content_size = strlen(send_msg.content);
-            send(client_socket, &send_msg, sizeof(send_msg), 0);
+    switch(recv_msg.header.type){
+        case MSG_TYPE::kEnterRoom:
+            std::cout << "EnterRoom" << std::endl;
+            if(!CheckRoomExist(room_name)) break; // 방이 없다면
+            EnterRoom(room_name, client_socket);
             break;
-        }
 
-        case MSG_TYPE::kMakeRoom:{
-            std::string room_name(recv_msg.content);
-            if(room_and_clients.count(room_name) > 0){
-                std::copy(kRoomNameDuplication.begin(), kRoomNameDuplication.end(), send_msg.content);
-                send_msg.content_size = strlen(send_msg.content);
-                send(client_socket, &send_msg, sizeof(send_msg), 0);
-            }
-            else{
-                room_and_clients[room_name].push_back(client_socket);
-                std::copy(kMakeRoomSuccess.begin(), kMakeRoomSuccess.end(), send_msg.content);
-                send_msg.content_size = strlen(send_msg.content);
-                send(client_socket, &send_msg, sizeof(send_msg), 0);
-            }
+        case MSG_TYPE::kCreateRoom:
+            std::cout << "CreateRoom" << std::endl;
+            if(CheckRoomExist(room_name)) break; // 동일한 이름의 방이 이미 존재한다면
+            EnterRoom(room_name, client_socket);
             break;
-        }
-        case MSG_TYPE::kEnterRoom:{
-            std::string room_name(recv_msg.content);
-            if(room_and_clients.count(room_name) == 0){
-                std::copy(kEnterRoomFailed.begin(), kEnterRoomFailed.end(), send_msg.content);
-                send_msg.content_size = strlen(send_msg.content);
-                send(client_socket, &send_msg, sizeof(send_msg), 0);
-            }
+
+        case MSG_TYPE::kReadRoom:
+
             break;
-        }
-        case MSG_TYPE::kSendMsg:{
-            BroadCastToClient(recv_msg, client_socket);
+
+        case MSG_TYPE::kSendMsg:
+            std::cout << "SendMsg" << std::endl;
+            BroadCastMsg(recv_msg, client_socket);
             break;
-        }
+
         default:
             break;
     }
 }
 
-std::string GetRoomNames(){
-    std::string ret = "";
-    for(auto iter = room_and_clients.begin(); iter != room_and_clients.end(); iter++) ret += iter->first + "$";
-    ret += "\0";
-    return ret;
+bool CheckRoomExist(const std::string& room_name){
+    std::shared_lock<std::shared_mutex> lock(room_locks[room_name]);
+    return rooms.count(room_name) == 1;
 }
 
-void BroadCastToClient(const Msg& msg, const int sender){
-    shared_lock<shared_mutex> lock(clients_mutex);
-    for(int client: room_and_client[clients]){
-        send(client, msg, sizeof(msg), 0);
+void DeleteRoom(const std::string& room_name){
+    std::unique_lock<std::shared_mutex> lock(room_locks[room_name]);
+    if(rooms[room_name].size() == 0) rooms.erase(room_name);
+
+}
+
+void EnterRoom(const std::string& room_name, const int& client_socket){
+    std::unique_lock<std::shared_mutex> lock(room_locks[room_name]);
+    rooms[room_name].emplace_back(client_socket);
+}
+
+void ExitRoom(const std::string& room_name, const int& client_socket){
+    std::unique_lock<std::shared_mutex> lock(room_locks[room_name]);
+    rooms[room_name].erase(std::remove(rooms[room_name].begin(), rooms[room_name].end(), client_socket), rooms[room_name].end());
+    if(rooms[room_name].size() == 0){
+        lock.unlock();
+        DeleteRoom(room_name);
     }
+}
+
+Msg GetList(){
+    // room_list의 길이가 너무 길지는 않은지 확인해주어야 함.
+    // return Msg(MsgHeader(MSG_TYPE::kReadRoom, "", ""), room_list);    
+}
+
+void BroadCastMsg(const Msg& send_msg, const int& client_socket){
+    const std::string& room_name = send_msg.header.room_name;
+    std::shared_lock<std::shared_mutex> lock(room_locks[room_name]);
+    for(int client: rooms[room_name]){
+        std::cout << "client: " << client << std::endl;
+        if(client == client_socket) continue;
+        send(client, &send_msg, sizeof(send_msg), 0);
+    }
+}
+
+void Disconnect(const int& client_socket){
+    // ExitRoom(client_socket);
+    // BroadCastMsg();
 }

@@ -11,7 +11,9 @@ enum MSG_TYPE{
     kReadRoom,
     kCreateRoom,
     kEnterRoom,
-    kSendMsg
+    kSendMsg,
+    kLogin,
+    kLogout,
 };
 
 class MsgHeader{
