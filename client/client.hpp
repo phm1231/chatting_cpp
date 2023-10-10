@@ -6,12 +6,16 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstring>
+#include <thread>
+#include "types.hpp"
 
 const int kPort = 8080;
 bool is_login = false;
 bool has_joined_room = false;
 std::string room_name = "";
 std::string id = "";
+int sockfd;
+const int kCheckLength[] = {32, 32, 256};
 
 void InitClient(int& client_socket, struct sockaddr_in& address);
 inline std::string GetUserInput();
@@ -21,36 +25,13 @@ void Logout();
 void Help();
 void GetList();
 void EnterRoom();
-void MakeRoom();
+void CreateRoom();
 void SendMsg(const std::string& user_input);
+inline bool CheckInputValidity(const std::string& str, CHECK_TYPE check_type);
+void ReceiveFromServer();
+void HandleRecvMsg(const Msg& recv_msg);
 
 std::string& ltrim(std::string &s);
 std::string& rtrim(std::string &s);
 std::string& trim(std::string &s);
 
-enum MSG_TYPE{
-    kWaitingMsg,
-    kReadRoom,
-    kMakeRoom,
-    kEnterRoom,
-    kSendMsg
-};
-
-class MsgHeader{
-private:
-    MSG_TYPE type;
-    std::string sender;
-    std::string room_name;
-
-public:
-    MsgHeader(const MSG_TYPE type, const std::string& sender, const std::string& room_name):
-        type(type), sender(sender), room_name(room_name) {}
-};
-
-class Msg{
-public:
-    MsgHeader header;
-    std::string content;
-
-    Msg(const MsgHeader& header, const string& content): header(header), content(content);
-}

@@ -3,11 +3,13 @@
 int main(int argc, char const* argv[]){
     
     while(!is_login) Login();
-    Help();
 
-    int client_socket;
     struct sockaddr_in address;
-    InitClient(client_socket, address);
+    InitClient(sockfd, address);
+
+    std::thread receiver(ReceiveFromServer);
+    receiver.detach();
+    Help();
 
     while(1){
         const std::string user_input = GetUserInput();
@@ -29,7 +31,7 @@ void HandleUserInput(const std::string& user_input){
     else if(user_input == "/Help") Help();
     else if(user_input == "/List") GetList();
     else if(user_input == "/Enter") EnterRoom();
-    else if(user_input == "/Make") MakeRoom();
+    else if(user_input == "/Create") CreateRoom();
     else SendMsg(user_input);
 }
 
@@ -57,33 +59,95 @@ void Help(){
     std::cout << "/Login\n";
     std::cout << "/Logout\n";
     std::cout << "/List\n";
-    std::cout << "/Enter (room_name)\n";
-    std::cout << "/Make (room_name)\n";
+    std::cout << "/Enter\n";
+    std::cout << "/Create\n";
     std::cout << "/Exit\n";
     std::cout << "===== ===== ===== =====\n";
 }
 
 void GetList(){
+    if(!is_login || has_joined_room) return;
 
+    Msg send_msg(MsgHeader(MSG_TYPE::kReadRoom, id, ""), "");
+    send(sockfd, &send_msg, sizeof(send_msg), 0);
 }
 
 void EnterRoom(){
     if(!is_login || has_joined_room) return;
 
-    std::string join_room = "";
+    std::string enter_room = "";
     std::cout << "참여할 방 이름 입력: ";
-    getline(std::cin, join_room);
-    join_room = trim(join_room);
 
-    Msg send_msg(MsgHeader(MSG_TYPE::kEnterRoom, id, join_room), "");
-    send()
+    getline(std::cin, enter_room);
+    enter_room = trim(enter_room);
+    assert(CheckInputValidity(enter_room, CHECK_TYPE::kRoomName));
+
+    Msg send_msg(MsgHeader(MSG_TYPE::kEnterRoom, id, enter_room), "");
+    send(sockfd, &send_msg, sizeof(send_msg), 0);
 }
 
-void MakeRoom(){
+void CreateRoom(){
+    if(!is_login || has_joined_room) return;
 
+    std::string create_room = "";
+    std::cout << "생성할 방 이름 입력: ";
+    getline(std::cin, create_room);
+
+    create_room = trim(create_room);
+    assert(CheckInputValidity(create_room, CHECK_TYPE::kRoomName));
+
+    Msg send_msg(MsgHeader(MSG_TYPE::kCreateRoom, id, create_room), "");
+    send(sockfd, &send_msg, sizeof(send_msg), 0);
 }
+
 void SendMsg(const std::string& user_input){
+    assert(CheckInputValidity(user_input, CHECK_TYPE::kContent));
+    Msg send_msg(MsgHeader(MSG_TYPE::kSendMsg, id, room_name), user_input);
+    send(sockfd, &send_msg, sizeof(send_msg), 0);
+}
 
+inline bool CheckInputValidity(const std::string& str, CHECK_TYPE check_type){
+    return str.size() < kCheckLength[check_type];
+}
+
+void ReceiveFromServer(){
+    while(1){
+        char recv_buffer[512] = {0, };
+        recv(sockfd, recv_buffer, sizeof(recv_buffer), 0);
+
+        Msg recv_msg;
+        memcpy(&recv_msg, recv_buffer, sizeof(recv_msg));
+        HandleRecvMsg(recv_msg);
+    }    
+}
+
+void HandleRecvMsg(const Msg& recv_msg){
+    switch(recv_msg.header.type){
+        case MSG_TYPE::kEnterRoom:
+            if(is_login && !has_joined_room){
+                room_name = recv_msg.header.room_name;
+                std::cout << "Enter: " << room_name << std::endl;
+            }
+            break;
+        case MSG_TYPE::kCreateRoom:
+            if(is_login && !has_joined_room){
+                room_name = recv_msg.header.room_name;
+                std::cout << "Create: " << room_name << std::endl;
+            }
+            break;
+        case MSG_TYPE::kReadRoom:
+            if(is_login && !has_joined_room){
+                std::cout << "List: " << recv_msg.content << std::endl;
+            }
+            break;
+        case MSG_TYPE::kSendMsg:
+            if(is_login && has_joined_room){
+                std::cout << recv_msg.header.sender << ": " << recv_msg.content << std::endl;
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 std::string& ltrim(std::string &s)
@@ -95,6 +159,7 @@ std::string& ltrim(std::string &s)
     s.erase(s.begin(), it);
     return s;
 }
+
 std::string& rtrim(std::string &s)
 {
     auto it = std::find_if(s.rbegin(), s.rend(),
@@ -104,6 +169,7 @@ std::string& rtrim(std::string &s)
     s.erase(it.base(), s.end());
     return s;
 }
+
 std::string& trim(std::string &s) {
     return ltrim(rtrim(s));
 }
