@@ -1,14 +1,13 @@
 #include "client.hpp"
 
-int main(int argc, char const* argv[]){
-    
-    while(!is_login) Login();
-
+int main(){    
     struct sockaddr_in address;
     InitClient(sockfd, address);
 
     std::thread receiver(ReceiveFromServer);
     receiver.detach();
+
+    while(!is_login) Login();
     Help();
 
     while(1){
@@ -26,8 +25,6 @@ inline std::string GetUserInput(){
 }
 
 void HandleUserInput(const std::string& user_input){
-    if(user_input == "") return;
-    std::cout << "user_input: " << user_input << std::endl;
     if(user_input == "/Login") Login();
     else if(user_input == "/Logout") Logout();
     else if(user_input == "/Help") Help();
@@ -43,7 +40,7 @@ void Login(){
     std::cout << "ID: ";
     std::string _id;
     std::cin >> _id;
-    std::cin.ignore();
+    std::cin.ignore(512, '\n');
 
     id = trim(_id);
     is_login = true;

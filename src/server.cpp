@@ -73,8 +73,10 @@ void HandleRecvMsg(const Msg& recv_msg, const int& client_socket){
             break;
 
         case MSG_TYPE::kReadRoom:
-
             break;
+
+        case MSG_TYPE::kExitRoom:
+        
 
         case MSG_TYPE::kSendMsg:
             std::cout << "SendMsg" << std::endl;
@@ -120,7 +122,6 @@ void BroadCastMsg(const Msg& send_msg, const int& client_socket){
     const std::string& room_name = send_msg.header.room_name;
     std::shared_lock<std::shared_mutex> lock(room_locks[room_name]);
     for(int client: rooms[room_name]){
-        std::cout << "client: " << client << std::endl;
         if(client == client_socket) continue;
         send(client, &send_msg, sizeof(send_msg), 0);
     }

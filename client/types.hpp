@@ -7,13 +7,11 @@ enum CHECK_TYPE{
 };
 
 enum MSG_TYPE{
-    kWaitingMsg,
     kReadRoom,
     kCreateRoom,
     kEnterRoom,
     kSendMsg,
-    kLogin,
-    kLogout,
+    kExitRoom
 };
 
 class MsgHeader{
