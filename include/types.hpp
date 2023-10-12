@@ -1,31 +1,29 @@
 #include <string>
 
-enum CHECK_TYPE{
-    kUserId,
-    kRoomName,
-    kContent
-};
-
+// MSG 타입 정의
 enum MSG_TYPE{
+    kSetSockId,
     kReadRoom,
-    kCreateRoom,
     kEnterRoom,
+    kLeaveRoom,
     kSendMsg,
-    kExitRoom
+    kDisconnected,
+    kLogin,
+    kLogout
 };
 
 class MsgHeader{
 public:
     MSG_TYPE type;
-    char sender[32];
-    char room_name[32];
-    
+    int client_socket; // server에서 client 식별자.
+    char sender[32]; // 보낸 사람 Id
+
     MsgHeader(){}
 
-    MsgHeader(const MSG_TYPE _type, const std::string& _sender, const std::string& _room_name){
+    MsgHeader(const MSG_TYPE _type, const int& _client_socket, const std::string& _sender){
         type = _type;
-        std::copy(_sender.begin(), _sender.end(), sender);
-        std::copy(_room_name.begin(), _room_name.end(), room_name);
+        client_socket = _client_socket;
+        strcpy(sender, _sender.c_str());
     }
 };
 
@@ -38,16 +36,16 @@ public:
 
     Msg(const MsgHeader& _header, const std::string& _content){
         header = _header;
-        std::copy(_content.begin(), _content.end(), content);
+        strcpy(content, _content.c_str());
     }
 };
 
-class Client{
+class ClientInfo{
 private:
-    std::string id;
-    std::string room_name;
+    std::string id; // sender
+    std::string room_name; // 참여 중인 방 이름
 public:
-    Client(const std::string& _id = "", const std::string& _room_name = ""){
+    ClientInfo(const std::string& _id = "", const std::string& _room_name = ""){
         SetId(_id);
         SetRoomName(_room_name);
     }

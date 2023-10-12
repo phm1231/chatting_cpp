@@ -9,29 +9,49 @@
 #include <thread>
 #include "types.hpp"
 
+using namespace std;
+
 const int kPort = 8080;
-bool is_login = false;
-bool has_joined_room = false;
-std::string room_name = "";
-std::string id = "";
-int sockfd;
-const int kCheckLength[] = {32, 32, 256};
+class Client{
+private:
+    int sockfd;
+    struct sockaddr_in address;
+    const int sock_id = -1; // Server에서 사용하는 별도의 식별자.
+    ClientInfo client_info; // <login_id, 참여한 방 이름>
 
-void InitClient(int& client_socket, struct sockaddr_in& address);
-inline std::string GetUserInput();
-void HandleUserInput(const std::string& user_input);
-void Login();
-void Logout();
-void Help();
-void GetList();
-void EnterRoom();
-void CreateRoom();
-void SendMsg(const std::string& user_input);
-inline bool CheckInputValidity(const std::string& str, CHECK_TYPE check_type);
-void ReceiveFromServer();
-void HandleRecvMsg(const Msg& recv_msg);
+    void GetSockId(); // 최초 Server와 연결 시 sock_id 할당
 
-std::string& ltrim(std::string &s);
-std::string& rtrim(std::string &s);
-std::string& trim(std::string &s);
+    void ReceiveFromServer();
+
+    // 옵션 별 기능 구현
+    void Logout();
+    void RequestRoomList();
+    void EnterRoom();
+    void LeaveRoom();
+    void SendMsg(const string& user_input);
+    void Exit();
+
+    // msg를 send
+    inline void SendRequest(const Msg& send_msg);
+
+public:
+    bool is_login;
+    bool has_joined_room;
+
+    Client();
+    void AddServerReceiver();
+
+    // 사용자 입력 및 입력에 따른 함수 호출
+    inline string GetUserInput();
+    void HandleUserInput(const string& user_input);
+
+    // 옵션 별 기능 구현
+    void Login();
+    inline void Help();
+
+};
+
+string& ltrim(string &s);
+string& rtrim(string &s);
+string& trim(string &s);
 
