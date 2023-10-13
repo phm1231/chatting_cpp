@@ -12,6 +12,7 @@
 using namespace std;
 
 const int kPort = 8080;
+
 class Client{
 private:
     int sockfd;
@@ -54,4 +55,3 @@ public:
 string& ltrim(string &s);
 string& rtrim(string &s);
 string& trim(string &s);
-

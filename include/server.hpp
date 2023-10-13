@@ -14,10 +14,11 @@
 
 using namespace std;
 
+const int kPort = 8080;
+
 typedef unordered_map<string, vector<int> > Rooms;
 typedef unordered_map<int, ClientInfo > ClientInfos;
 
-const int kPort = 8080;
 class Server{
 private:
     int sockfd, addr_len;
